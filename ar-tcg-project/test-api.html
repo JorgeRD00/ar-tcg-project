@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test TCG API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .card {
+            background: white;
+            margin: 10px;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .card img {
+            max-width: 200px;
+            max-height: 280px;
+            border-radius: 8px;
+        }
+        .pink-aura-container {
+            position: relative;
+            display: inline-block;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .pink-aura-container::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            background: linear-gradient(45deg, 
+                #ff69b4 0%, 
+                #ff1493 25%, 
+                #c71585 50%, 
+                #ff69b4 75%, 
+                #ff1493 100%);
+            border-radius: 15px;
+            z-index: -1;
+            animation: pinkAuraGlow 2s ease-in-out infinite alternate;
+            filter: blur(8px);
+            opacity: 0.8;
+        }
+        .pink-aura-image {
+            position: relative;
+            z-index: 1;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(255, 105, 180, 0.5);
+        }
+        @keyframes pinkAuraGlow {
+            0% { opacity: 0.6; transform: scale(1); }
+            100% { opacity: 1; transform: scale(1.05); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Test de API TCG con Aura Rosa</h1>
+    <button onclick="loadCards()">Cargar Cartas</button>
+    <div id="results"></div>
+
+    <script src="assets/api/tcg-api.js"></script>
+    <script>
+        // Esperar a que el DOM esté cargado
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('TCGCardAPI available:', typeof TCGCardAPI);
+        });
+        
+        async function loadCards() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Cargando...</p>';
+            
+            try {
+                const api = new TCGCardAPI();
+                const cards = await api.loadCardImages();
+                
+                if (cards.length === 0) {
+                    results.innerHTML = '<p>No se encontraron cartas que cumplan los criterios.</p>';
+                    return;
+                }
+                
+                results.innerHTML = `<h2>Se encontraron ${cards.length} cartas:</h2>`;
+                
+                cards.forEach(card => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'card';
+                    
+                    const auraContainer = document.createElement('div');
+                    auraContainer.className = 'pink-aura-container';
+                    
+                    const img = document.createElement('img');
+                    img.className = 'pink-aura-image';
+                    img.src = card.imageUrl;
+                    img.alt = card.name;
+                    
+                    auraContainer.appendChild(img);
+                    
+                    cardDiv.innerHTML = `
+                        <h3>${card.name}</h3>
+                        <p><strong>ID:</strong> ${card.id}</p>
+                        <p><strong>Nation:</strong> Lyrical Monasterio</p>
+                        <p><strong>Type:</strong> Unit</p>
+                    `;
+                    
+                    cardDiv.appendChild(auraContainer);
+                    results.appendChild(cardDiv);
+                });
+                
+            } catch (error) {
+                console.error('Error:', error);
+                results.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

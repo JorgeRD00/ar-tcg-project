@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Test - TCG API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .metrics {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #4CAF50;
+            transition: width 0.3s ease;
+        }
+        .card-preview {
+            display: inline-block;
+            margin: 5px;
+            text-align: center;
+        }
+        .card-preview img {
+            max-width: 80px;
+            max-height: 112px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test de Rendimiento - API TCG</h1>
+    
+    <div class="metrics">
+        <h3>Métricas de Rendimiento</h3>
+        <div id="metrics-content">
+            <p>Haz clic en "Iniciar Test" para comenzar</p>
+        </div>
+    </div>
+    
+    <div class="progress">
+        <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+    </div>
+    
+    <button onclick="runPerformanceTest()">Iniciar Test</button>
+    <button onclick="testLargeDataset()">Test Dataset Grande (Simulado)</button>
+    
+    <div id="results"></div>
+
+    <script src="../api/tcg-api.js"></script>
+    <script>
+        let startTime;
+        let endTime;
+        
+        async function runPerformanceTest() {
+            const metricsDiv = document.getElementById('metrics-content');
+            const progressBar = document.getElementById('progress-bar');
+            const resultsDiv = document.getElementById('results');
+            
+            metricsDiv.innerHTML = '<p>Iniciando test...</p>';
+            progressBar.style.width = '0%';
+            resultsDiv.innerHTML = '';
+            
+            startTime = performance.now();
+            
+            try {
+                const api = new TCGCardAPI();
+                
+                // Actualizar progreso
+                progressBar.style.width = '20%';
+                metricsDiv.innerHTML = '<p>Obteniendo datos de la API...</p>';
+                
+                const cards = await api.fetchCards();
+                
+                progressBar.style.width = '60%';
+                metricsDiv.innerHTML = `<p>Procesando ${cards.length} cartas...</p>`;
+                
+                endTime = performance.now();
+                const processingTime = endTime - startTime;
+                
+                // Mostrar resultados
+                progressBar.style.width = '100%';
+                
+                metricsDiv.innerHTML = `
+                    <h4>Resultados:</h4>
+                    <p><strong>Cartas encontradas:</strong> ${cards.length}</p>
+                    <p><strong>Tiempo total:</strong> ${processingTime.toFixed(2)}ms</p>
+                    <p><strong>Tiempo por carta:</strong> ${(processingTime / cards.length).toFixed(2)}ms</p>
+                    <p><strong>Cartas/segundo:</strong> ${(cards.length / (processingTime / 1000)).toFixed(0)}</p>
+                `;
+                
+                // Mostrar primeras 10 cartas como preview
+                resultsDiv.innerHTML = '<h4>Preview de cartas:</h4>';
+                cards.slice(0, 10).forEach(card => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'card-preview';
+                    cardDiv.innerHTML = `
+                        <img src="${card.imageUrl}" alt="${card.name}" title="${card.name}">
+                        <p style="font-size: 12px; margin: 5px 0;">${card.name}</p>
+                    `;
+                    resultsDiv.appendChild(cardDiv);
+                });
+                
+            } catch (error) {
+                metricsDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                console.error('Performance test error:', error);
+            }
+        }
+        
+        async function testLargeDataset() {
+            const metricsDiv = document.getElementById('metrics-content');
+            const progressBar = document.getElementById('progress-bar');
+            
+            metricsDiv.innerHTML = '<p>Simulando dataset grande...</p>';
+            progressBar.style.width = '0%';
+            
+            // Simular 24,124 cartas
+            const simulatedCards = [];
+            for (let i = 0; i < 24124; i++) {
+                simulatedCards.push({
+                    name: `Card ${i}`,
+                    imageUrl: `https://picsum.photos/seed/card${i}/200/280`,
+                    extendedData: [
+                        { name: 'Unit', value: i % 3 === 0 ? 'Normal Unit' : 'Special Unit' },
+                        { name: 'Nation', value: i % 5 === 0 ? 'Lyrical Monasterio' : 'Other Nation' }
+                    ],
+                    productId: i
+                });
+                
+                // Actualizar progreso cada 1000 cartas
+                if (i % 1000 === 0) {
+                    progressBar.style.width = `${(i / 24124) * 100}%`;
+                    metricsDiv.innerHTML = `<p>Generando dataset simulado: ${i}/24124 cartas...</p>`;
+                    await new Promise(resolve => setTimeout(resolve, 1));
+                }
+            }
+            
+            startTime = performance.now();
+            
+            const api = new TCGCardAPI();
+            const filteredCards = await api.filterCardsOptimized(simulatedCards);
+            
+            endTime = performance.now();
+            const processingTime = endTime - startTime;
+            
+            progressBar.style.width = '100%';
+            
+            metricsDiv.innerHTML = `
+                <h4>Resultados Dataset Grande:</h4>
+                <p><strong>Total cartas simuladas:</strong> ${simulatedCards.length}</p>
+                <p><strong>Cartas filtradas:</strong> ${filteredCards.length}</p>
+                <p><strong>Tiempo de procesamiento:</strong> ${processingTime.toFixed(2)}ms</p>
+                <p><strong>Tiempo por carta:</strong> ${(processingTime / simulatedCards.length).toFixed(2)}ms</p>
+                <p><strong>Cartas/segundo:</strong> ${(simulatedCards.length / (processingTime / 1000)).toFixed(0)}</p>
+                <p><strong>Estimación para 24,124 reales:</strong> ${(processingTime * 1).toFixed(0)}ms</p>
+            `;
+        }
+    </script>
+</body>
+</html>
