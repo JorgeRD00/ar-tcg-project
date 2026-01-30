@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+    <title>AR TCG Publicidad</title>
+    <link rel="stylesheet" href="assets/effects/pink-aura.css">
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999998 !important;
+            background: rgba(0,0,0,0.95) !important;
+            padding: 15px !important;
+            border-radius: 10px !important;
+            color: white !important;
+            text-align: center !important;
+            border: 3px solid #ff4444 !important;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5) !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+        
+        #controls button {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        #controls button:hover {
+            background: #cc0000;
+            transform: scale(1.05);
+        }
+        
+        #zoomControls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 999999 !important;
+            background: rgba(0,0,0,0.95) !important;
+            padding: 15px !important;
+            border-radius: 10px !important;
+            color: white !important;
+            border: 3px solid #4CAF50 !important;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5) !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+        
+        .zoom-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 3px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            min-width: 40px;
+        }
+        
+        .zoom-btn:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+        
+        .zoom-btn:active {
+            transform: scale(0.95);
+        }
+        
+        #cardInfo {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9997;
+            background: rgba(0,0,0,0.95);
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            max-width: 300px;
+            border: 2px solid #ff69b4;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        #cardImage {
+            max-width: 100px;
+            max-height: 140px;
+            margin: 10px auto;
+            display: block;
+            border-radius: 5px;
+        }
+        
+        #recordBtn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        #recordBtn.recording {
+            background: #44ff44;
+        }
+        
+        #status {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <a-scene 
+        embedded 
+        arjs="sourceType: webcam; 
+               debugUIEnabled: false; 
+               detectionMode: mono_and_matrix; 
+               matrixCodeType: 3x3;
+               cameraParameters: {
+                 sourceWidth: 1280,
+                 sourceHeight: 720,
+                 displayWidth: 1280,
+                 displayHeight: 720
+               };
+               trackingMethod: best;
+               patternRatio: 0.5;"
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false">
+        
+        <a-camera 
+            gps-camera="gpsMinDistance: 5"
+            rotation-reader
+            zoom="1"
+            fov="80">
+        </a-camera>
+        
+        <a-marker preset="hiro">
+            <a-box 
+                position="0 0.5 0" 
+                material="color: #4CC3D9;"
+                animation="property: rotation; to: 360 360 360; dur: 10000; easing: linear; loop: true">
+            </a-box>
+            <a-text 
+                value="TCG Card Detected!" 
+                position="0 1 0" 
+                align="center" 
+                color="white"
+                scale="0.5 0.5 0.5">
+            </a-text>
+        </a-marker>
+        
+        <a-entity camera></a-entity>
+    </a-scene>
+    
+    <div id="zoomControls">
+        <div>Zoom: <span id="zoomLevel">1.0</span>x</div>
+        <button class="zoom-btn" onclick="zoomIn()">+</button>
+        <button class="zoom-btn" onclick="zoomOut()">-</button>
+        <button class="zoom-btn" onclick="resetZoom()">Reset</button>
+    </div>
+    
+    <div id="controls">
+        <div id="status">Apuntando cámara a marcador...</div>
+        <button id="recordBtn">Grabar Video</button>
+        <button id="detectBtn">Detectar Carta</button>
+        <button id="galleryBtn">Galería de Cartas</button>
+    </div>
+    
+    <div id="cardInfo" class="hidden">
+        <h3 id="cardName">Nombre de la Carta</h3>
+        <img id="cardImage" src="" alt="Card">
+        <p id="cardDescription">Descripción de la carta</p>
+    </div>
+    
+    <video id="recordedVideo" class="hidden" controls></video>
+    
+    <script src="assets/api/tcg-api.js"></script>
+    <script src="assets/cards/cards-data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

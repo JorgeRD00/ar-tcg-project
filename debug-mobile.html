@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Mobile - AR TCG</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: white;
+        }
+        
+        #debugPanel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.9);
+            border: 2px solid #00ff00;
+            padding: 10px;
+            z-index: 99999;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+        
+        #testButtons {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.9);
+            border: 2px solid #ff0000;
+            padding: 10px;
+            z-index: 99998;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .test-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        #videoContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <div id="debugPanel">
+        <h3>Debug Panel</h3>
+        <div id="debugInfo">Iniciando...</div>
+    </div>
+    
+    <div id="videoContainer">
+        <video id="cameraVideo" autoplay playsinline></video>
+    </div>
+    
+    <div id="testButtons">
+        <button class="test-btn" onclick="startCamera()">Iniciar Cámara</button>
+        <button class="test-btn" onclick="testZoom()">Test Zoom</button>
+        <button class="test-btn" onclick="testVisibility()">Test Visibilidad</button>
+    </div>
+
+    <script>
+        let debugInfo = document.getElementById('debugInfo');
+        let currentZoom = 1.0;
+        
+        function log(message) {
+            console.log(message);
+            debugInfo.innerHTML += '<br>' + message;
+        }
+        
+        function startCamera() {
+            log('Iniciando cámara...');
+            
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            })
+            .then(stream => {
+                const video = document.getElementById('cameraVideo');
+                video.srcObject = stream;
+                log('✅ Cámara iniciada');
+                log('Resolución: ' + video.videoWidth + 'x' + video.videoHeight);
+            })
+            .catch(error => {
+                log('❌ Error cámara: ' + error.message);
+            });
+        }
+        
+        function testZoom() {
+            log('Testeando zoom...');
+            const video = document.getElementById('cameraVideo');
+            
+            currentZoom += 0.1;
+            if (currentZoom > 2.0) currentZoom = 0.5;
+            
+            video.style.transform = `scale(${currentZoom})`;
+            log(`Zoom aplicado: ${currentZoom}x`);
+        }
+        
+        function testVisibility() {
+            log('Testeando visibilidad de elementos...');
+            
+            const elements = [
+                { id: 'debugPanel', name: 'Debug Panel' },
+                { id: 'testButtons', name: 'Test Buttons' },
+                { id: 'videoContainer', name: 'Video Container' }
+            ];
+            
+            elements.forEach(el => {
+                const element = document.getElementById(el.id);
+                if (element) {
+                    const rect = element.getBoundingClientRect();
+                    log(`${el.name}: visible=${element.offsetParent !== null}, z-index=${getComputedStyle(element).zIndex}`);
+                } else {
+                    log(`${el.name}: ❌ No encontrado`);
+                }
+            });
+        }
+        
+        // Auto-start
+        window.addEventListener('load', () => {
+            log('Página cargada');
+            log('User Agent: ' + navigator.userAgent);
+            log('Viewport: ' + window.innerWidth + 'x' + window.innerHeight);
+            
+            setTimeout(() => {
+                testVisibility();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

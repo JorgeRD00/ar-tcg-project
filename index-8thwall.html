@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR TCG - 8th Wall</title>
+    
+    <!-- 8th Wall -->
+    <script async src="//apps.8thwall.com/xrweb?appKey=XXXXX"></script>
+    
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="//cdn.8thwall.com/web/aframe/8thwall-aframe.js"></script>
+    
+    <link rel="stylesheet" href="assets/effects/pink-aura.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0,0,0,0.8);
+            padding: 15px 25px;
+            border-radius: 25px;
+            border: 2px solid #ff4444;
+        }
+        
+        .controls button {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            margin: 0 5px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid #ff69b4;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .card-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 999;
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #ff69b4;
+            color: white;
+            text-align: center;
+            max-width: 250px;
+            display: none;
+        }
+        
+        .card-display img {
+            max-width: 120px;
+            max-height: 160px;
+            border-radius: 8px;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div>Cargando AR...</div>
+    </div>
+    
+    <div class="status" id="status">Iniciando...</div>
+    
+    <div class="controls">
+        <button onclick="showRandomCard()">Carta</button>
+        <button onclick="placeCard()">Colocar</button>
+        <button onclick="clearCards()">Limpiar</button>
+    </div>
+    
+    <div class="card-display" id="cardDisplay">
+        <h3 id="cardName">Carta</h3>
+        <img id="cardImage" src="" alt="Card">
+        <p id="cardDesc">Carta de TCG con aura rosa</p>
+    </div>
+
+    <!-- Escena AR con 8th Wall -->
+    <a-scene 
+        xrweb 
+        xrsurface 
+        xrrecording
+        xrmesh
+        xrlight
+        xranimation>
+        
+        <!-- Entidad para colocar cartas -->
+        <a-entity id="cardContainer"></a-entity>
+        
+        <!-- Luz ambiental -->
+        <a-light type="ambient" color="#404040"></a-light>
+        <a-light type="directional" position="0 1 0" color="#ffffff" intensity="0.5"></a-light>
+        
+        <!-- Cámara -->
+        <a-camera position="0 1.6 0"></a-camera>
+    </a-scene>
+
+    <script src="assets/api/tcg-api.js"></script>
+    <script>
+        let tcgCards = [];
+        let currentCard = null;
+        let placedCards = [];
+        
+        // Detectar cuando 8th Wall está listo
+        window.addEventListener('xrloaded', () => {
+            console.log('8th Wall cargado');
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('status').textContent = 'AR listo - apunta a superficie';
+            loadCards();
+        });
+        
+        // Detectar superficie
+        document.querySelector('a-scene').addEventListener('xrsurfacefound', (event) => {
+            document.getElementById('status').textContent = 'Superficie detectada';
+        });
+        
+        async function loadCards() {
+            try {
+                const api = new TCGCardAPI();
+                tcgCards = await api.loadCardImages();
+                document.getElementById('status').textContent = `${tcgCards.length} cartas cargadas`;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('status').textContent = 'Error cargando cartas';
+            }
+        }
+        
+        function showRandomCard() {
+            if (tcgCards.length === 0) {
+                document.getElementById('status').textContent = 'Cargando cartas...';
+                return;
+            }
+            
+            currentCard = tcgCards[Math.floor(Math.random() * tcgCards.length)];
+            const display = document.getElementById('cardDisplay');
+            
+            document.getElementById('cardName').textContent = currentCard.name;
+            document.getElementById('cardImage').src = currentCard.imageUrl;
+            document.getElementById('cardImage').className = 'pink-aura-image';
+            
+            display.style.display = 'block';
+            
+            setTimeout(() => {
+                display.style.display = 'none';
+            }, 3000);
+        }
+        
+        function placeCard() {
+            if (!currentCard) {
+                showRandomCard();
+                return;
+            }
+            
+            // Crear entidad de carta en AR
+            const cardEntity = document.createElement('a-entity');
+            cardEntity.setAttribute('position', '0 0 -1');
+            cardEntity.setAttribute('rotation', '-90 0 0');
+            cardEntity.setAttribute('scale', '0.5 0.5 0.5');
+            
+            // Crear imagen con aura
+            const image = document.createElement('a-image');
+            image.setAttribute('src', currentCard.imageUrl);
+            image.setAttribute('width', '0.6');
+            image.setAttribute('height', '0.8');
+            image.className = 'pink-aura-image';
+            
+            // Crear texto
+            const text = document.createElement('a-text');
+            text.setAttribute('value', currentCard.name);
+            text.setAttribute('position', '0 0.5 0');
+            text.setAttribute('align', 'center');
+            text.setAttribute('color', 'white');
+            text.setAttribute('scale', '0.3 0.3 0.3');
+            
+            cardEntity.appendChild(image);
+            cardEntity.appendChild(text);
+            
+            // Animación flotante
+            cardEntity.setAttribute('animation', {
+                property: 'position',
+                to: '0 0.2 -1',
+                dur: 2000,
+                dir: 'alternate',
+                loop: true
+            });
+            
+            document.getElementById('cardContainer').appendChild(cardEntity);
+            placedCards.push(cardEntity);
+            
+            document.getElementById('status').textContent = 'Carta colocada en AR';
+        }
+        
+        function clearCards() {
+            placedCards.forEach(card => {
+                card.remove();
+            });
+            placedCards = [];
+            document.getElementById('status').textContent = 'Cartas eliminadas';
+        }
+        
+        // Touch gestures para zoom
+        let initialDistance = 0;
+        let currentScale = 1;
+        
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                initialDistance = getDistance(e.touches[0], e.touches[1]);
+            }
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2) {
+                const currentDistance = getDistance(e.touches[0], e.touches[1]);
+                const scale = currentDistance / initialDistance;
+                currentScale = Math.max(0.5, Math.min(3, scale));
+                
+                // Aplicar zoom a la última carta colocada
+                if (placedCards.length > 0) {
+                    const lastCard = placedCards[placedCards.length - 1];
+                    lastCard.setAttribute('scale', `${0.5 * currentScale} ${0.5 * currentScale} ${0.5 * currentScale}`);
+                }
+            }
+        });
+        
+        function getDistance(touch1, touch2) {
+            const dx = touch1.clientX - touch2.clientX;
+            const dy = touch1.clientY - touch2.clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+    </script>
+</body>
+</html>

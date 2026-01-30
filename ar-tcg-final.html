@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR TCG - Final</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <link rel="stylesheet" href="assets/effects/pink-aura.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        .bottom-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999999;
+            background: rgba(0,0,0,0.9);
+            padding: 15px 25px;
+            border-radius: 25px;
+            border: 2px solid #ff4444;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        .bottom-controls button {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            margin: 0 5px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .bottom-controls button:hover {
+            background: #cc0000;
+            transform: scale(1.05);
+        }
+        
+        .card-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 999998;
+            background: rgba(0,0,0,0.95);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #ff69b4;
+            color: white;
+            text-align: center;
+            max-width: 280px;
+            display: none;
+        }
+        
+        .card-display img {
+            max-width: 120px;
+            max-height: 160px;
+            border-radius: 8px;
+        }
+        
+        .status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 999999;
+            background: rgba(0,0,0,0.9);
+            padding: 8px 15px;
+            border-radius: 8px;
+            border: 2px solid #ff69b4;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="status" id="status">Iniciando...</div>
+    
+    <!-- Controles inferiores -->
+    <div class="bottom-controls">
+        <button onclick="detectCard()">Detectar</button>
+        <button onclick="showRandomCard()">Carta</button>
+        <button onclick="toggleRecord()">Grabar</button>
+    </div>
+    
+    <!-- Display de carta -->
+    <div class="card-display" id="cardDisplay">
+        <h3 id="cardName">Carta</h3>
+        <img id="cardImage" src="" alt="Card">
+        <p id="cardDesc">Carta de TCG con aura rosa</p>
+    </div>
+
+    <!-- Escena AR con configuración de cámara controlada -->
+    <a-scene embedded 
+             arjs="sourceType: webcam; 
+                    debugUIEnabled: false;
+                    trackingMethod: best;
+                    sourceWidth: 1280;
+                    sourceHeight: 720;
+                    displayWidth: 1280;
+                    displayHeight: 720;
+                    canvasWidth: 1280;
+                    canvasHeight: 720;
+                    cameraParameters: url();" 
+             vr-mode-ui="enabled: false">
+        <a-marker preset="hiro">
+            <a-box position="0 0.5 0" material="color: #4CC3D9;" 
+                   animation="property: rotation; to: 360 360 360; dur: 10000; loop: true">
+            </a-box>
+            <a-text value="¡Carta Detectada!" position="0 1 0" align="center" 
+                    color="white" scale="0.5 0.5 0.5">
+            </a-text>
+        </a-marker>
+        <a-camera fov="80" zoom="1"></a-camera>
+    </a-scene>
+
+    <script src="assets/api/tcg-api.js"></script>
+    <script>
+        let tcgCards = [];
+        let isRecording = false;
+        let mediaRecorder = null;
+        
+        // Funciones de cartas
+        async function loadCards() {
+            try {
+                const api = new TCGCardAPI();
+                tcgCards = await api.loadCardImages();
+                document.getElementById('status').textContent = `${tcgCards.length} cartas cargadas`;
+            } catch (error) {
+                console.error('Error cargando cartas:', error);
+                document.getElementById('status').textContent = 'Error cargando cartas';
+            }
+        }
+        
+        function showRandomCard() {
+            if (tcgCards.length === 0) {
+                document.getElementById('status').textContent = 'Cargando cartas...';
+                return;
+            }
+            
+            const randomCard = tcgCards[Math.floor(Math.random() * tcgCards.length)];
+            const display = document.getElementById('cardDisplay');
+            
+            document.getElementById('cardName').textContent = randomCard.name;
+            document.getElementById('cardImage').src = randomCard.imageUrl;
+            
+            // Aplicar aura rosa
+            const img = document.getElementById('cardImage');
+            img.className = 'pink-aura-image';
+            
+            display.style.display = 'block';
+            
+            setTimeout(() => {
+                display.style.display = 'none';
+            }, 5000);
+        }
+        
+        function detectCard() {
+            showRandomCard();
+        }
+        
+        function toggleRecord() {
+            document.getElementById('status').textContent = 'Grabación no implementada';
+        }
+        
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('status').textContent = 'Cargando...';
+            
+            // Forzar configuración de cámara después de que AR.js cargue
+            setTimeout(() => {
+                const scene = document.querySelector('a-scene');
+                if (scene && scene.hasLoaded) {
+                    console.log('AR.js cargado, ajustando cámara...');
+                    document.getElementById('status').textContent = 'AR listo';
+                }
+            }, 2000);
+            
+            // Cargar cartas
+            loadCards();
+            
+            // Configurar detección de marcador
+            const marker = document.querySelector('a-marker');
+            marker.addEventListener('markerFound', () => {
+                document.getElementById('status').textContent = '¡Marcador detectado!';
+                showRandomCard();
+            });
+            
+            marker.addEventListener('markerLost', () => {
+                document.getElementById('status').textContent = 'Marcador perdido';
+            });
+        });
+    </script>
+</body>
+</html>
